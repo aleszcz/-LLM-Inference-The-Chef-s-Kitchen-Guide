@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Inference — The Chef's Kitchen Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Code+Pro:wght@400;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161e;
+    --card: #1a1e2a;
+    --border: #252a38;
+    --accent: #f4a435;
+    --accent2: #5b8cf7;
+    --accent3: #4ecb8d;
+    --accent4: #e05c7a;
+    --text: #e8eaf0;
+    --muted: #7a8099;
+    --code-bg: #0a0c12;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Lato', sans-serif;
+    font-weight: 300;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  header {
+    background: linear-gradient(135deg, #0d0f14 0%, #131825 50%, #0f1420 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  header::after {
+    content: '👨‍🍳';
+    position: absolute;
+    font-size: 20rem;
+    opacity: 0.03;
+    top: -4rem;
+    right: -3rem;
+    line-height: 1;
+  }
+
+  .header-label {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.2rem, 5vw, 3.8rem);
+    font-weight: 900;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  header p {
+    color: var(--muted);
+    font-size: 1.05rem;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .chapter-label {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 1.5rem;
+    letter-spacing: 0.15em;
+  }
+
+  /* Navigation */
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  nav a {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+  nav a:hover { color: var(--accent); border-color: var(--accent); }
+
+  main {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  /* Enemy banner */
+  .enemy-banner {
+    background: linear-gradient(135deg, #1a0f00, #1a1200);
+    border: 1px solid #3a2800;
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin: 2rem 0 3rem;
+    font-size: 1.05rem;
+  }
+  .enemy-banner strong { color: var(--accent); }
+
+  /* Section */
+  section {
+    margin-bottom: 2rem;
+  }
+
+  .section-number {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    margin-bottom: 0.5rem;
+  }
+
+  section h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.9rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: #fff;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.75rem;
+  }
+
+  /* Cards */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .card:hover { border-color: var(--accent2); transform: translateY(-2px); }
+
+  .card-icon { font-size: 2rem; margin-bottom: 0.75rem; }
+  .card-title {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent2);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.05em;
+  }
+  .card p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+  .card .analogy {
+    margin-top: 0.75rem;
+    padding: 0.6rem 0.8rem;
+    background: var(--code-bg);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    font-size: 0.82rem;
+    color: #c8cadf;
+    font-style: italic;
+  }
+
+  /* Concept block */
+  .concept {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.75rem 2rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .concept-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .concept-emoji { font-size: 1.8rem; }
+
+  .concept-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .concept-tag {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.65rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    letter-spacing: 0.1em;
+    margin-left: auto;
+  }
+  .tag-memory { background: #1a2a1a; color: var(--accent3); border: 1px solid #2a4a2a; }
+  .tag-compute { background: #1a1a2a; color: var(--accent2); border: 1px solid #2a2a4a; }
+  .tag-latency { background: #2a1a1a; color: var(--accent4); border: 1px solid #4a2a2a; }
+  .tag-kvcache { background: #2a2000; color: var(--accent); border: 1px solid #4a3800; }
+
+  .concept p { color: var(--muted); font-size: 0.92rem; margin-bottom: 0.75rem; }
+
+  .analogy-box {
+    background: linear-gradient(135deg, #0f1a0f, #111a0f);
+    border: 1px solid #2a3a1a;
+    border-left: 4px solid var(--accent3);
+    border-radius: 6px;
+    padding: 1rem 1.2rem;
+    margin: 0.75rem 0;
+  }
+  .analogy-box .analogy-label {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.65rem;
+    color: var(--accent3);
+    letter-spacing: 0.2em;
+    margin-bottom: 0.4rem;
+  }
+  .analogy-box p { color: #b8d4b8; font-size: 0.88rem; margin: 0; font-style: italic; }
+
+  .enemy-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #1a0a0a;
+    border: 1px solid #3a1515;
+    border-radius: 5px;
+    padding: 0.3rem 0.8rem;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.75rem;
+    color: var(--accent4);
+    margin-bottom: 0.75rem;
+  }
+
+  /* Code block */
+  .code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.8rem;
+    color: #a8b4d0;
+    margin: 0.75rem 0;
+    overflow-x: auto;
+    line-height: 1.6;
+    white-space: pre;
+  }
+  .code-block .c-green { color: var(--accent3); }
+  .code-block .c-yellow { color: var(--accent); }
+  .code-block .c-blue { color: var(--accent2); }
+  .code-block .c-red { color: var(--accent4); }
+  .code-block .c-muted { color: #4a5068; }
+
+  /* Table */
+  .summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    font-size: 0.85rem;
+  }
+  .summary-table th {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border-bottom: 2px solid var(--border);
+    background: var(--surface);
+  }
+  .summary-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    vertical-align: top;
+  }
+  .summary-table tr:hover td { background: var(--card); }
+  .summary-table td:first-child {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.78rem;
+    color: var(--accent2);
+    white-space: nowrap;
+  }
+  .summary-table td:nth-child(2) { color: var(--accent4); font-size: 0.82rem; }
+  .summary-table td:nth-child(3) { color: #c8cadf; font-style: italic; font-size: 0.82rem; }
+
+  /* Two col */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+  .col-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+  }
+  .col-box h4 {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .col-box.good h4 { color: var(--accent3); }
+  .col-box.bad h4 { color: var(--accent4); }
+  .col-box ul { list-style: none; }
+  .col-box ul li {
+    font-size: 0.85rem;
+    color: var(--muted);
+    padding: 0.2rem 0;
+  }
+  .col-box.good ul li::before { content: '✅ '; }
+  .col-box.bad ul li::before { content: '❌ '; }
+
+  /* Divider */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 3rem 0;
+  }
+
+  /* Big insight box */
+  .insight {
+    background: linear-gradient(135deg, #0f1525, #131a30);
+    border: 1px solid #2a3560;
+    border-left: 4px solid var(--accent2);
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin: 1.5rem 0;
+  }
+  .insight .insight-label {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.65rem;
+    color: var(--accent2);
+    letter-spacing: 0.2em;
+    margin-bottom: 0.5rem;
+  }
+  .insight p { color: #b8c8f0; font-size: 1rem; margin: 0; }
+  .insight strong { color: #fff; }
+
+  footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 2rem;
+    text-align: center;
+    color: var(--muted);
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    margin-top: 4rem;
+  }
+
+  .badge {
+    display: inline-block;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.65rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    letter-spacing: 0.08em;
+    vertical-align: middle;
+    margin-left: 0.4rem;
+  }
+  .badge-new { background: #1a2a1a; color: var(--accent3); border: 1px solid #2a4a2a; }
+  .badge-hot { background: #2a1500; color: var(--accent); border: 1px solid #4a2800; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-label">Chapter 6 — LLM Inference Illustrated</div>
+  <h1>The Chef's Kitchen Guide<br>to LLM Inference</h1>
+  <p>Every optimization in LLM inference, explained with one analogy: a professional kitchen.</p>
+  <div class="chapter-label">REQUEST COMPUTE · MEMORY · LATENCY BOTTLENECKS</div>
+</header>
+
+<nav>
+  <a href="#enemy">The Enemy</a>
+  <a href="#attention">Attention</a>
+  <a href="#fusion">Kernel Fusion</a>
+  <a href="#cuda">CUDA Graphs</a>
+  <a href="#compile">Compilation</a>
+  <a href="#kvcache">KV Cache</a>
+  <a href="#prefix">Prefix Cache</a>
+  <a href="#speculative">Speculative</a>
+  <a href="#lookahead">Lookahead</a>
+  <a href="#summary">Summary</a>
+</nav>
+
+<main>
+
+  <!-- Enemy -->
+  <section id="enemy">
+    <div class="enemy-banner">
+      <strong>⚔️ The Universal Enemy:</strong> Slow HBM memory. Every technique in this chapter is fighting the same battle — keeping the GPU cooking at full speed instead of constantly waiting on the fridge.
+      <br><br>
+      <strong>The Kitchen:</strong> GPU on-chip SRAM = tiny fast prep counter. HBM = big slow walk-in fridge. Every unnecessary fridge trip = wasted time = slower tokens.
+    </div>
+  </section>
+
+  <!-- ATTENTION -->
+  <section id="attention">
+    <div class="section-number">// 6.1 — MEMORY-AWARE ATTENTION</div>
+    <h2>Attention Kernels 🍳</h2>
+
+    <div class="concept">
+      <div class="concept-header">
+        <span class="concept-emoji">😤</span>
+        <span class="concept-title">Vanilla (Standard) Attention</span>
+        <span class="concept-tag tag-memory">MEMORY PROBLEM</span>
+      </div>
+      <div class="enemy-box">⚔️ Enemy: O(S²) HBM round trips</div>
+      <p>The naive implementation computes Q×Kᵀ scores, dumps them to HBM, reads them back, applies softmax, dumps again, reads again... 6 total HBM transfers, with the intermediate matrices growing <strong>quadratically</strong> with sequence length.</p>
+      <div class="code-block"><span class="c-red">Step 1:</span> Read Q, K from HBM → on-chip
+<span class="c-red">Step 2:</span> Compute Scores → <span class="c-yellow">WRITE to HBM</span>  ← waste
+<span class="c-red">Step 3:</span> <span class="c-yellow">READ Scores back</span> from HBM       ← waste
+<span class="c-red">Step 4:</span> Softmax → <span class="c-yellow">WRITE Attn to HBM</span>   ← waste
+<span class="c-red">Step 5:</span> <span class="c-yellow">READ Attn back</span> + Read V          ← waste
+<span class="c-red">Step 6:</span> Compute output → write to HBM
+
+At S=4096: Score matrix = 16.7 MILLION entries per head 😱
+Double S → 4× memory (quadratic!)</div>
+      <div class="analogy-box">
+        <div class="analogy-label">🍳 CHEF ANALOGY</div>
+        <p>The chaotic chef walks to the fridge 6 times per dish — storing half-finished sauces there and fetching them back. The bigger the menu (longer sequence), the more sauce he stores, until the fridge literally runs out of space.</p>
+      </div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-header">
+        <span class="concept-emoji">⚡</span>
+        <span class="concept-title">FlashAttention v1 (2022)</span>
+        <span class="concept-tag tag-memory">32× LESS TRAFFIC</span>
+      </div>
+      <div class="enemy-box">⚔️ Kills: Unnecessary HBM intermediate storage</div>
+      <p>Never materialize the full S×S matrix in HBM. Instead, tile Q, K, V into small blocks that fit in SRAM and compute everything on-chip. Use <strong>online softmax</strong> — a running correction technique — so you never need the full matrix at once.</p>
+      <div class="code-block"><span class="c-green">Step 1:</span> Read small TILES of Q, K, V → on-chip SRAM
+<span class="c-muted">         ┌─────────────────────────────────────┐</span>
+<span class="c-muted">         │ For each tile (i,j):                │</span>
+<span class="c-green">         │   Compute S(i,j) = Q(i) @ K(j)ᵀ    │ ← stays in SRAM</span>
+<span class="c-green">         │   Online Softmax (running stats)     │ ← stays in SRAM</span>
+<span class="c-green">         │   O(i) += A(i,j) @ V(j)             │ ← stays in SRAM</span>
+<span class="c-muted">         └─────────────────────────────────────┘</span>
+<span class="c-green">Step 2:</span> Write ONLY final output O → HBM
+
+HBM traffic: O(S²) → O(S·d)   ~32× less at S=4096 ✅
+<span class="c-yellow">Note: more arithmetic, but bottleneck was never arithmetic!</span></div>
+      <div class="analogy-box">
+        <div class="analogy-label">🍳 CHEF ANALOGY</div>
+        <p>The smart chef works in small batches entirely on his prep counter, using a running notepad to track seasoning adjustments as he goes. He only walks to the fridge twice: once to grab ingredients, once to deliver the finished dish.</p>
+      </div>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">🔄</div>
+        <div class="card-title">FlashAttention v2 (2023)</div>
+        <p>Swaps the inner/outer loops — Q blocks outer, K/V blocks inner. Less communication between GPU thread warps. Better occupancy.</p>
+        <div class="analogy">Reorders which sous chef does what. Less bumping into each other → <strong>2× faster</strong> than v1, same recipe.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🏭</div>
+        <div class="card-title">FlashAttention v3 (2024)</div>
+        <p>Built for H100 specifically. Warp specialization: some threads fetch data while others compute simultaneously. Uses FP8 tensor cores.</p>
+        <div class="analogy">Dedicated fetchers AND dedicated cooks working at the same time. Custom kitchen built for this exact recipe.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🚀</div>
+        <div class="card-title">FlashAttention v4 (2025)</div>
+        <p>Same philosophy for Blackwell B200. Achieves 1,605 TFLOPS and 71% hardware utilization.</p>
+        <div class="analogy">Even newer, fancier kitchen. 71% of the time the kitchen is actually cooking — not waiting.</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- KERNEL FUSION -->
+  <section id="fusion">
+    <div class="section-number">// 6.2 — KERNEL FUSION</div>
+    <h2>Kernel Fusion 🔧</h2>
+
+    <div class="concept">
+      <div class="concept-header">
+        <span class="concept-emoji">🔗</span>
+        <span class="concept-title">Fusing GPU Operations</span>
+        <span class="concept-tag tag-compute">COMPUTE</span>
+      </div>
+      <div class="enemy-box">⚔️ Kills: HBM round trips between operations</div>
+      <p>Every time one GPU kernel finishes and the next starts, results get written to HBM then read back. Kernel fusion combines multiple operations into one kernel so intermediate results stay in registers/SRAM.</p>
+      <div class="analogy-box">
+        <div class="analogy-label">🍳 CHEF ANALOGY</div>
+        <p>Instead of running to the fridge between every single step, do multiple cooking steps without leaving the counter. Chop + season + sear all in one uninterrupted motion.</p>
+      </div>
+
+      <div class="card-grid" style="margin-top:1rem">
+        <div class="card">
+          <div class="card-title">Fused QKV Projection</div>
+          <p>Compute Q, K, and V in one kernel instead of three separate passes.</p>
+          <div class="analogy">Chop all 3 vegetables in one cutting session, not three separate trips to the board.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Fused Softmax + Mask</div>
+          <p>Apply causal mask and softmax together — avoid write-then-read.</p>
+          <div class="analogy">Season AND plate in one motion.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Fused Add + LayerNorm</div>
+          <p>Residual addition + layer normalization in one kernel.</p>
+          <div class="analogy">Stir and taste-adjust simultaneously.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Fused RoPE + Attention</div>
+          <p>Apply rotary position embeddings inside the attention kernel itself.</p>
+          <div class="analogy">Add position seasoning while already cooking the sauce.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- CUDA GRAPHS -->
+  <section id="cuda">
+    <div class="section-number">// 6.2 — CUDA GRAPHS</div>
+    <h2>CUDA Graphs ⚡</h2>
+
+    <div class="concept">
+      <div class="concept-header">
+        <span class="concept-emoji">📋</span>
+        <span class="concept-title">Record Once, Replay Forever</span>
+        <span class="concept-tag tag-latency">LATENCY</span>
+      </div>
+      <div class="enemy-box">⚔️ Kills: CPU↔GPU chatter between kernel launches</div>
+      <p>During decode, the GPU runs the exact same kernel sequence every step. But without CUDA graphs, the CPU launches each kernel individually — 5–10µs overhead each × hundreds of kernels = hundreds of microseconds of the GPU sitting idle per token.</p>
+      <div class="code-block"><span class="c-red">WITHOUT CUDA graphs:</span>
+CPU: "do step 1" → wait → "do step 2" → wait → "do step 3" → ...
+                      ↑ GPU IDLE         ↑ GPU IDLE
+Hundreds of launches × 5-10µs = ~milliseconds wasted per token
+
+<span class="c-green">WITH CUDA graphs:</span>
+First run: record everything into a "graph"
+Every run after: one single command → GPU runs full sequence ✅</div>
+      <div class="analogy-box">
+        <div class="analogy-label">🍳 CHEF ANALOGY</div>
+        <p>The manager used to call each chef individually for every single step of every dish. Now he hands the kitchen a <strong>laminated recipe card</strong> on day one. Every evening service: one signal — "start dinner" — and the kitchen runs itself without waiting for the manager's approval at each step.</p>
+      </div>
+      <p style="margin-top:0.75rem"><strong style="color:#fff">The catch:</strong> CUDA graphs are static. Different batch size → need a new card. Serving frameworks keep a small pool of pre-captured graphs for common batch sizes.</p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- COMPILATION -->
+  <section id="compile">
+    <div class="section-number">// 6.2 — COMPUTATION GRAPH COMPILATION</div>
+    <h2>torch.compile & TensorRT-LLM 🏗️</h2>
+
+    <div class="two-col">
+      <div class="col-box">
+        <h4 style="color:var(--accent2)">torch.compile — Smart Sous Chef</h4>
+        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:0.75rem">Traces the model, automatically finds fusion opportunities, emits optimized code via Triton. Minimal code changes required.</p>
+        <div class="analogy-box" style="margin:0">
+          <div class="analogy-label">🍳 ANALOGY</div>
+          <p>A smart sous chef watches the kitchen and suggests: "Hey, those 3 steps could be combined..." Easy to adopt, flexible to change.</p>
+        </div>
+      </div>
+      <div class="col-box">
+        <h4 style="color:var(--accent)">TensorRT-LLM — Industrial Rebuild</h4>
+        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:0.75rem">Converts model to TensorRT format. Layer fusion, precision calibration (auto FP8/FP16 per op), kernel auto-tuning, memory planning. Longer setup, maximum speed.</p>
+        <div class="analogy-box" style="margin:0">
+          <div class="analogy-label">🍳 ANALOGY</div>
+          <p>An industrial consultant tears out the kitchen and rebuilds it perfectly for this exact menu on this exact stove. Takes time to set up, but runs at absolute maximum speed.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- KV CACHE -->
+  <section id="kvcache">
+    <div class="section-number">// 6.3 — KV CACHE ENGINEERING</div>
+    <h2>KV Cache 🗄️</h2>
+
+    <div class="insight">
+      <div class="insight-label">// WHAT IS THE KV CACHE</div>
+      <p>Every processed token generates Keys and Values that are saved to avoid recomputation. For a 70B model: <strong>2 × 80 layers × 8 heads × 128 dim × 2 bytes = 32,768 bytes per token</strong>. At 4K context: ~128MB per request. With many users, this dominates GPU memory.</p>
+    </div>
+
+    <div class="concept">
+      <div class="concept-header">
+        <span class="concept-emoji">🏨</span>
+        <span class="concept-title">Naive Allocation — The Bad Hotel</span>
+        <span class="concept-tag tag-kvcache">THE PROBLEM</span>
+      </div>
+      <p>Pre-allocating contiguous memory for the maximum possible sequence length wastes up to <strong>80%</strong> of GPU memory through three failure modes:</p>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title" style="color:var(--accent4)">Reserved Slots</div>
+          <p>Memory held for tokens not generated yet. Blocked for everyone else.</p>
+          <div class="analogy">Hotel holds 100 rooms for a guest who only checked in — "just in case they need them."</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--accent4)">Internal Fragmentation</div>
+          <p>Sequence ends at 500 tokens but you reserved 2048. 1548 slots wasted forever.</p>
+          <div class="analogy">Guest checks out after 3 nights but had 30 nights reserved. Empty rooms, no one else can use them.</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--accent4)">External Fragmentation</div>
+          <p>Gaps between finished requests too small for new ones to fit.</p>
+          <div class="analogy">Gaps between guests are 50-room gaps. New guest needs 200. Nobody fits.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-header">
+        <span class="concept-emoji">📄</span>
+        <span class="concept-title">PagedAttention</span>
+        <span class="concept-tag tag-kvcache">SOLUTION</span>
+      </div>
+      <div class="enemy-box">⚔️ Kills: 80% memory waste from fragmentation</div>
+      <p>Borrowed from OS virtual memory. KV cache split into fixed-size <strong>pages</strong> (16–32 tokens each). Each request's KV cache is a linked list of pages scattered anywhere in GPU memory — allocated on demand, freed immediately when done.</p>
+      <div class="analogy-box">
+        <div class="analogy-label">🍳 CHEF ANALOGY</div>
+        <p>Instead of reserving a giant block of fridge space per guest upfront, assign small standardized containers on-demand as the meal progresses. When a guest leaves, their containers are immediately available for the next guest. Near-zero waste.</p>
+      </div>
+      <p style="margin-top:0.75rem"><strong style="color:var(--accent3)">Bonus:</strong> Requests sharing the same prefix (same system prompt) can reference the exact same physical pages — stored once, shared by many.</p>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">🗜️</div>
+        <div class="card-title">KV Cache Quantization</div>
+        <p>Store KV entries in INT8/FP8 instead of FP16. Model computes in FP16, but storage is half the size. Errors average out across attention. Near-linear speedup to decode.</p>
+        <div class="analogy">Store leftovers in smaller containers. Same taste, half the fridge space.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🌀</div>
+        <div class="card-title">TurboQuant <span class="badge badge-hot">BUZZ</span></div>
+        <p>Random rotations before quantization. Achieves 3.5 bits per entry without quality loss. Uses only sums, no matrix multiply — super fast.</p>
+        <div class="analogy">Vacuum-seal the leftovers after restructuring them first. 4.5× smaller than original.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🗑️</div>
+        <div class="card-title">Token Eviction / Keyformer</div>
+        <p>Track attention scores. Delete low-scoring tokens entirely. High scorers (VIPs) stay. Refreshed periodically as generation continues.</p>
+        <div class="analogy">Throw out prep containers nobody touches. Only VIP ingredients keep their fridge spot.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🎯</div>
+        <div class="card-title">Native Sparse Attention <span class="badge badge-new">2025</span></div>
+        <p>DeepSeek's approach. Three zones: compressed old tokens, selected high-relevance tokens, sliding window of recent tokens. Trained into model from scratch.</p>
+        <div class="analogy">Chef trained from day one to use only 3 organized fridge zones. Not a hack — it's how he learned to cook.</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- PREFIX CACHING -->
+  <section id="prefix">
+    <div class="section-number">// 6.4 — PROMPT & PREFIX CACHING</div>
+    <h2>Prefix Caching 🗂️</h2>
+
+    <div class="concept">
+      <div class="concept-header">
+        <span class="concept-emoji">♻️</span>
+        <span class="concept-title">RadixAttention — The Virtual Memory System for LLMs</span>
+        <span class="concept-tag tag-kvcache">KV CACHE</span>
+      </div>
+      <div class="enemy-box">⚔️ Kills: Redundant prefill for shared prefixes</div>
+      <p>When thousands of requests share the same system prompt, you're recomputing the same KV entries millions of times per day. RadixAttention (SGLang) stores KV cache entries in a <strong>radix tree</strong> keyed by token sequences — shared prefixes stored exactly once.</p>
+      <div class="code-block"><span class="c-muted">Without caching:</span>
+100 req/s × 2,000 token system prompt = <span class="c-red">200,000 redundant tokens/second</span>
+
+<span class="c-muted">With RadixAttention:</span>
+"You are a helpful assistant. Drive to convention center?" ─┐
+                                                             ├─ shared KV stored ONCE
+"You are a helpful assistant. Best pizza near me?"        ─┘
+Only the unique question part needs prefill ✅
+
+<span class="c-green">Result: ~90% prefill reduction for long system prompts</span></div>
+      <div class="analogy-box">
+        <div class="analogy-label">🍳 CHEF ANALOGY</div>
+        <p>The smart chef makes base stock <strong>once</strong>, stores it in labeled containers. Every new dish: grab pre-made stock, skip straight to the unique part of cooking. The filing cabinet (radix tree) knows exactly where every stock variant lives.</p>
+      </div>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">📌</div>
+        <div class="card-title">Sticky Routing</div>
+        <p>KV cache only lives on ONE GPU. Route same prefix → same GPU. Same user → same GPU. Otherwise cache misses everywhere.</p>
+        <div class="analogy">Same customer always goes to the same restaurant location. Their prep work is already done there.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📐</div>
+        <div class="card-title">Order Matters!</div>
+        <p>Prefix caching only works if stable content comes FIRST. System prompt → examples → history → question. Same order, every time.</p>
+        <div class="analogy">Stable ingredients always on the same shelf, same position. Chef finds them instantly. Different position = cache miss.</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- SPECULATIVE DECODING -->
+  <section id="speculative">
+    <div class="section-number">// 6.5 — SPECULATIVE DECODING</div>
+    <h2>Breaking the Sequential Chain 🚀</h2>
+
+    <div class="insight">
+      <div class="insight-label">// THE CORE INSIGHT</div>
+      <p><strong>Verifying a sequence of tokens is WAY cheaper than generating them.</strong> Generating 5 tokens = 5 sequential forward passes. Verifying 5 tokens = 1 forward pass (parallel, like prefill). This asymmetry is everything.</p>
+    </div>
+
+    <div class="concept">
+      <div class="concept-header">
+        <span class="concept-emoji">🎯</span>
+        <span class="concept-title">Speculative Decoding</span>
+        <span class="concept-tag tag-latency">LATENCY</span>
+      </div>
+      <div class="enemy-box">⚔️ Kills: One token per forward pass constraint</div>
+      <div class="code-block"><span class="c-muted">Standard decode:</span>  The → quick → brown → fox → jumps  (5 passes)
+
+<span class="c-green">Speculative decode pass 1:</span>
+Draft guesses:   fox  jumps  on    a
+Target verifies: <span class="c-green">✅</span>   <span class="c-green">✅</span>    <span class="c-red">❌</span>    <span class="c-muted">✗</span>
+Accepted: "fox jumps" + resample "over" = <span class="c-green">3 tokens, 1 pass</span>
+
+<span class="c-green">Speculative decode pass 2 (worst case):</span>
+Draft guesses:   my   lazy  dog   .
+Target verifies: <span class="c-red">❌</span>   <span class="c-muted">✗</span>    <span class="c-muted">✗</span>    <span class="c-muted">✗</span>
+Result: resample "the" = <span class="c-yellow">1 token, 1 pass (same as normal — can't lose!)</span>
+
+Average at α=0.8: ~3.4 tokens per target pass ✅</div>
+      <div class="analogy-box">
+        <div class="analogy-label">🍳 CHEF ANALOGY</div>
+        <p>The Apprentice (small draft model) quickly preps a guess for the next 4 courses. The Head Chef (big target model) checks all 4 at once and says yes or no to each. Correct guesses are served immediately. Wrong guesses get redone. Head Chef approves in bulk instead of cooking everything himself.</p>
+      </div>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">🌳</div>
+        <div class="card-title">Tree-Based Speculation</div>
+        <p>Instead of one chain of guesses, draft produces a tree of candidates. Target verifies the whole tree in one pass. Longer accepted paths.</p>
+        <div class="analogy">Apprentice preps multiple possible next courses. Head Chef picks the longest correct path through the options.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📄</div>
+        <div class="card-title">Inference with Reference</div>
+        <p>Draft tokens come from retrieved documents or cached text. Acceptance rate ~0.95+ when output closely mirrors input (summarization, editing).</p>
+        <div class="analogy">Instead of guessing, apprentice reads last week's menu. Head Chef agrees with most of it already.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">⚡</div>
+        <div class="card-title">Spec-Spec Decoding <span class="badge badge-new">2025</span></div>
+        <p>Draft model doesn't wait for target to finish. Starts generating next batch optimistically assuming all tokens accepted. Pipeline both models.</p>
+        <div class="analogy">Apprentice starts prepping the next course before Head Chef finishes checking the current one. Kitchen never stops moving.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🧠</div>
+        <div class="card-title">Multi-Token Prediction</div>
+        <p>Extra prediction heads built into the main model. No separate draft model. Higher acceptance because drafts come from same weights.</p>
+        <div class="analogy">Head Chef trains his own internal intuition to predict what he'll cook next — more accurate than a separate apprentice.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🐍</div>
+        <div class="card-title">Medusa <span class="badge badge-hot">EASY WIN</span></div>
+        <p>Tiny linear heads added to frozen pretrained model. Train only the heads (hours). No draft model. Near-zero VRAM overhead. Just a flag in vLLM/SGLang.</p>
+        <div class="analogy">Sticky notes on the Head Chef's station suggesting what comes next. Cheap to add, doesn't change how he was trained.</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="col-box good">
+        <h4>✅ Speculative Decoding Works Best</h4>
+        <ul>
+          <li>Low temperature / deterministic</li>
+          <li>Code generation</li>
+          <li>Factual Q&A</li>
+          <li>Small batch sizes</li>
+          <li>Same-family draft model</li>
+        </ul>
+      </div>
+      <div class="col-box bad">
+        <h4>❌ Speculative Decoding Hurts</h4>
+        <ul>
+          <li>High temperature / creative</li>
+          <li>Large batch sizes (GPU already busy)</li>
+          <li>Cross-family draft models</li>
+          <li>Very short outputs</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- LOOKAHEAD -->
+  <section id="lookahead">
+    <div class="section-number">// 6.6 — PARALLEL DECODING</div>
+    <h2>Lookahead & Jacobi Decoding 🔄</h2>
+
+    <div class="concept">
+      <div class="concept-header">
+        <span class="concept-emoji">🔢</span>
+        <span class="concept-title">The Deep Insight: Autoregression is Optional</span>
+        <span class="concept-tag tag-latency">LATENCY</span>
+      </div>
+      <div class="insight" style="margin:0 0 1rem 0">
+        <div class="insight-label">// THE MATHEMATICAL TRUTH</div>
+        <p>Autoregression is <strong>one way</strong> to describe a joint probability distribution over tokens — not the only way. The same P(A,B,C,D) can be computed in parallel via Jacobi iteration and converge to the <strong>mathematically identical result</strong>.</p>
+      </div>
+      <div class="code-block"><span class="c-muted">Autoregressive (sequential):</span>
+P(A,B,C,D) = P(A) × P(B|A) × P(C|A,B) × P(D|A,B,C)
+             ↑ one token at a time, left to right
+
+<span class="c-green">Jacobi (parallel):</span>
+P(A,B,C,D) = P(A|B,C,D) × P(B|A,C,D) × P(C|A,B,D) × P(D|A,B,C)
+             ↑ all positions simultaneously, iterate until converged
+
+<span class="c-yellow">Both describe the EXACT SAME joint distribution ✅</span>
+<span class="c-yellow">Autoregression is a CHOICE, not a law.</span></div>
+      <div class="analogy-box">
+        <div class="analogy-label">🍳 CHEF ANALOGY</div>
+        <p>Instead of cooking dish-by-dish in sequence, the chef plates <strong>rough guesses for all dishes simultaneously</strong>, then iterates — tasting and adjusting everything in parallel — until the whole meal is consistent and correct. Mathematically proven to reach the same result.</p>
+      </div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-header">
+        <span class="concept-emoji">👀</span>
+        <span class="concept-title">Lookahead Decoding</span>
+        <span class="concept-tag tag-latency">NO EXTRA MODEL</span>
+      </div>
+      <div class="enemy-box">⚔️ Kills: Sequential constraint — zero extra parameters</div>
+      <p>Maintains a window of W future positions, initialized with guesses. Iterates all positions in parallel using Jacobi. Tokens that converge (stop changing) are accepted and the window slides forward.</p>
+      <div class="code-block">Already generated: "The quick"
+Window W=4, initial guesses: [brown] [dog]   [sat]   [here]
+
+Jacobi iteration 1:          [brown] [fox]   [jumps] [over]
+Jacobi iteration 2:          [brown] [fox]   [jumps] [over]  ← <span class="c-green">converged!</span>
+
+Accept "brown fox jumps over", slide window → more tokens ✅
+
+<span class="c-muted">Predictable text ("The capital of France is ___") → 1 iteration</span>
+<span class="c-muted">Creative text → more iterations</span>
+<span class="c-yellow">No draft model. No extra parameters. No training. Just math.</span></div>
+      <div class="analogy-box">
+        <div class="analogy-label">🍳 CHEF ANALOGY</div>
+        <p>Chef puts out rough guesses for all 4 next courses at once. Tastes everything simultaneously. Adjusts all in parallel. Repeats until every dish tastes exactly right and nothing changes. No apprentice needed — just the head chef working smarter.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- MASTER SUMMARY -->
+  <section id="summary">
+    <div class="section-number">// MASTER SUMMARY</div>
+    <h2>The Complete Kitchen Guide 📖</h2>
+
+    <div class="insight">
+      <div class="insight-label">// ONE UNIFYING IDEA</div>
+      <p>Every technique in Chapter 6 fights the same battles: <strong>unnecessary HBM trips</strong>, <strong>wasted memory</strong>, <strong>sequential constraints</strong>. Different layers, same war. Keep the GPU cooking at full speed.</p>
+    </div>
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Technique</th>
+          <th>Enemy Killed</th>
+          <th>Chef Analogy</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Vanilla Attention</td>
+          <td>— baseline problem —</td>
+          <td>6 fridge trips, giant sauce stored in walk-in</td>
+        </tr>
+        <tr>
+          <td>FlashAttention v1</td>
+          <td>O(S²) HBM waste</td>
+          <td>Work in tiles on counter, running notepad, 2 trips only</td>
+        </tr>
+        <tr>
+          <td>FlashAttention v2</td>
+          <td>Poor GPU parallelism</td>
+          <td>Reorder tasks so sous chefs stop bumping into each other</td>
+        </tr>
+        <tr>
+          <td>FlashAttention v3/v4</td>
+          <td>Hardware underutilization</td>
+          <td>Custom-built kitchen for the exact recipe and stove</td>
+        </tr>
+        <tr>
+          <td>Kernel Fusion</td>
+          <td>Per-operation HBM trips</td>
+          <td>Multi-step cooking without leaving the counter</td>
+        </tr>
+        <tr>
+          <td>CUDA Graphs</td>
+          <td>CPU↔GPU launch overhead</td>
+          <td>Laminated recipe card — one signal starts the whole service</td>
+        </tr>
+        <tr>
+          <td>torch.compile</td>
+          <td>Manual optimization burden</td>
+          <td>Smart sous chef auto-suggests improvements</td>
+        </tr>
+        <tr>
+          <td>TensorRT-LLM</td>
+          <td>Every last inefficiency</td>
+          <td>Industrial consultant rebuilds the entire kitchen</td>
+        </tr>
+        <tr>
+          <td>Naive KV Allocation</td>
+          <td>— 80% memory wasted —</td>
+          <td>Hotel reserves 100 rooms per guest, most sit empty</td>
+        </tr>
+        <tr>
+          <td>PagedAttention</td>
+          <td>Fragmentation waste</td>
+          <td>Small containers assigned on demand, freed immediately</td>
+        </tr>
+        <tr>
+          <td>KV Quantization</td>
+          <td>Storage bytes per token</td>
+          <td>Store leftovers in smaller containers — same taste</td>
+        </tr>
+        <tr>
+          <td>TurboQuant</td>
+          <td>Even more bytes</td>
+          <td>Vacuum-seal after restructuring — 4.5× smaller</td>
+        </tr>
+        <tr>
+          <td>Token Eviction / NSA</td>
+          <td>Too many cached tokens</td>
+          <td>Throw out containers nobody touches. VIPs stay.</td>
+        </tr>
+        <tr>
+          <td>Prefix Caching</td>
+          <td>Redundant prefill</td>
+          <td>Pre-made base stock, every dish starts from it</td>
+        </tr>
+        <tr>
+          <td>RadixAttention</td>
+          <td>No structured prefix reuse</td>
+          <td>Smart filing cabinet — shared stock stored exactly once</td>
+        </tr>
+        <tr>
+          <td>Sticky Routing</td>
+          <td>Cache misses across GPUs</td>
+          <td>Same customer → same kitchen location, always</td>
+        </tr>
+        <tr>
+          <td>Prompt Ordering</td>
+          <td>Accidental cache misses</td>
+          <td>Stable ingredients always on top shelf, same spot</td>
+        </tr>
+        <tr>
+          <td>Speculative Decoding</td>
+          <td>One token per pass limit</td>
+          <td>Apprentice guesses, Head Chef approves in bulk</td>
+        </tr>
+        <tr>
+          <td>Tree Speculation</td>
+          <td>Single chain failure cascade</td>
+          <td>Apprentice preps multiple possible next courses</td>
+        </tr>
+        <tr>
+          <td>Inference w/ Reference</td>
+          <td>Need generative draft</td>
+          <td>Just use last week's menu — Head Chef agrees with most</td>
+        </tr>
+        <tr>
+          <td>Spec-Spec Decoding</td>
+          <td>Draft idle time</td>
+          <td>Apprentice never stops — starts next course before verdict</td>
+        </tr>
+        <tr>
+          <td>Multi-Token Prediction</td>
+          <td>External draft model</td>
+          <td>Chef trains his own intuition to predict ahead</td>
+        </tr>
+        <tr>
+          <td>Medusa</td>
+          <td>Draft model complexity</td>
+          <td>Sticky notes on Chef's station — flip a flag, done</td>
+        </tr>
+        <tr>
+          <td>Lookahead / Jacobi</td>
+          <td>Autoregression as constraint</td>
+          <td>All dishes simultaneously, iterate till consistent — zero extra model</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+</main>
+
+<footer>
+  LLM Inference Illustrated — Chapter 6 Study Guide &nbsp;·&nbsp; Based on tedkyi.github.io/llm-inference &nbsp;·&nbsp; The Chef's Kitchen Edition
+</footer>
+
+</body>
+</html>
